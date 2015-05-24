@@ -1,0 +1,91 @@
+---
+title: "Project_Writeup"
+author: "Tariq Alhindi"
+date: "Sunday, May 24, 2015"
+output: html_document
+---
+
+Loading required libararies
+```{r}
+library(caret)
+library(randomForest)
+```
+
+
+### Preprocessing
+Reading datasets and removing columns that have all missing values
+```{r}
+rawTrain <- read.csv("pml-training.csv")
+training <- read.csv("pml-training-cleaned.csv")
+#training <- Filter(function(x){!all(is.na(x))}, rawTrain)
+
+rawTest <- read.csv("pml-testing.csv")
+testing <- Filter(function(x){!all(is.na(x))}, rawTest)
+```
+
+
+Removing the first seven columns as they have irrelavant information to the model
+e.g. username, timestamp...
+```{r}
+training <- training[,-c(1:7)]
+testing <- testing[,-c(1:7)]
+```
+
+
+### Data Split and Cross Validation
+Spliting the training data into new Training and new Testing sets, where the new Training set will consisting of 75% of the original training data, which will be used to build the model. The remaining 25% will be used to test the accuracy of the model before applying it to the 20 test cases that we want to predict.
+```{r}
+inTrain     <- createDataPartition(y=training$classe, p=0.75, list=FALSE)
+newTraining <- training[inTrain, ] 
+newTesting  <- training[-inTrain, ]
+```
+
+
+### Exploratory Plots
+
+```{r}
+plot(newTraining$classe, col="red", main="Histogram of the Classe variable in the new Training set", xlab="levels of classe variable", ylab="Frequency")
+```
+
+### Building the Model and validation:
+We use the random forest approach to build the model that consist of 53 predictors. Random forrest was chosen because it had an accuracy > 99% and was eventually able to predict all 20 test cases succesfully upon submission. 
+```{r}
+modfit <- randomForest(classe ~. , data=newTraining, method="class")
+predictions <- predict(modfit, newTesting, type = "class")
+```
+
+### Sample Error
+As can be seen below, the error is lower than 1% which gives high credibility for our model
+```{r}
+confusionMatrix(predictions, newTesting$classe)
+```
+
+Applying the model to the 20 test cases that we want to predict
+```{r}
+TestingDatasetPrediction <- predict(modfit, testing, type = "class")
+```
+
+Below are the classes for the 20 test cases of desire
+```{r}
+as.character(TestingDatasetPrediction)
+```
+
+
+### Submission
+In the end, we use the following function provided in the class to generate the 20 files needed to submit the programming part of the assignment
+```{r}
+answers = as.character(TestingDatasetPrediction)
+
+pml_write_files = function(x){
+     n = length(x)
+     for(i in 1:n){
+          filename = paste0("problem_id_",i,".txt")
+          write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+     }
+}
+
+pml_write_files(answers)
+```
+
+
+
